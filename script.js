@@ -3,19 +3,25 @@ const itemInput = document.getElementById('item-input');
 const itemList = document.getElementById('item-list');
 const filterWord = document.getElementById('filter');
 let filterDiv = document.querySelector('.filter');
-const filterDivCopy = filterDiv.cloneNode(true);
-let listItems = [...document.querySelectorAll('li')];
-const removeBtn = document.getElementById('clear')
+const clearBtn = document.getElementById('clear')
+let editMode = false;
+const addBtn = itemForm.querySelector('button');
 
-const addItems = (arr) => {
-    arr.forEach((item) => {
-        itemList.appendChild(item)
-    })
+const displayItems = () => {
+    const items = getItemsFromStorage();
+    items.forEach((item) => {
+        addItem(item)
+    });
+    checkUi();
 }
 
-
-const addItem = (e) => {
+const onAddItemSubmit = (e) => {
     e.preventDefault();
+
+    if(editMode){
+        editMode = false;
+        addBtn.innerHTML = '<i class="fa-solid fa-plus"></i> Add Item'
+    }
 
     const newValue = itemInput.value
 
@@ -24,26 +30,98 @@ const addItem = (e) => {
         return;
     }
 
-    if(filterDiv.innerHTML === ''){
-        filterDiv.innerHTML = filterDivCopy.innerHTML;
-        const filterWord = document.getElementById('filter');
-        filterWord.addEventListener('input', filterItems)
+    if(checkInStorage(newValue)){
+        alert('Item already exists');
+        return;
     }
 
+    addItem(newValue);
+    addItemStorage(newValue);
+    checkUi();
+    itemInput.value = '';
+}
+
+const checkInStorage = (item) => {
+    const items = getItemsFromStorage();
+    return items.includes(item);
+}
+
+const addItem = (item) => {
     const li = document.createElement('li');
-    li.appendChild(document.createTextNode(newValue));
+    li.appendChild(document.createTextNode(item));
+
     const button = createButton(['remove-item', 'btn-link', 'text-red'])
     li.appendChild(button);
     itemList.appendChild(li)
-    itemInput.value = '';
 }
+
+const addItemStorage = (item) => {
+    const items = getItemsFromStorage();
+    items.push(item);
+    localStorage.setItem('items', JSON.stringify(items));
+}
+
+
+const filterItems = (e) => {
+    const filterValue = e.target.value.toLowerCase();
+    const items = itemList.querySelectorAll('li');
+    items.forEach((item) => {
+        const word = item.firstChild.textContent.toLowerCase();
+        if(word.indexOf(filterValue) === -1){
+            item.style.display = 'none';
+        }
+        else{
+                item.style.display = 'flex';
+            }
+    })
+    
+}
+
+const onItemClick = (item) => {
+    const clickedItem = item.target
+    if(clickedItem.parentElement.classList.contains('remove-item')){
+        removeItem(clickedItem.parentElement)
+        
+    }else{
+        setItemToEdit(clickedItem)
+    }
+}
+
+const setItemToEdit = (item) => {
+    editMode = true;
+    console.log(addBtn)
+    addBtn.innerHTML = '<i class="fa-solid fa-pen"></i> Update Item'
+    itemInput.value = item.textContent
+}
+
+const removeItem = (item) => {
+    if(confirm('Are you sure you want to remove this item?')){
+        item.parentElement.remove()
+        checkUi();
+        removeFromStorage(item)
+    }
+}
+
+const removeFromStorage = (item) => {
+    const items = JSON.parse(localStorage.getItem('items')) || [];
+    items.splice(items.indexOf(item.parentElement.textContent), 1)
+    localStorage.setItem('items', JSON.stringify(items));
+}
+
+
+const getItemsFromStorage = () => {
+    return JSON.parse(localStorage.getItem('items')) || [];
+    
+}
+
+
+
 
 const createButton = (arrClasses) => {
     const button = document.createElement('button');
     button.classList.add(...arrClasses);
     const i = createIcon(['fa-solid', 'fa-xmark'])
     button.appendChild(i);
-    i.classList.add()
     return button;
 
 }
@@ -54,53 +132,37 @@ const createIcon = (arrClasses) => {
     return i;
 }
 
-const removeFilter = () => {
-    filterDiv.innerHTML = '';
+const checkUi = () => {
+    const items = itemList.querySelectorAll('li');
+    if(items.length === 0) {
+        filterDiv.style.display = 'none';
+        clearBtn.style.display = 'none';
+    }
+    else {
+            filterDiv.style.display = 'block';
+            clearBtn.style.display = 'block';
+        }
 }
 
 const clearItems = () => {
-    itemList.innerHTML = '';
+    while(itemList.firstChild){
+        itemList.removeChild(itemList.firstChild)
+    }
+    localStorage.removeItem('items');
+
+    checkUi();
 }
 
-const filterItems = (e) => {
-    const filterValue = e.target.value.toLowerCase();
-    const filteredList = listItems.filter( item =>  {
-        return item.innerText.toLowerCase().includes(filterValue.toLowerCase())})
+checkUi();
+getItemsFromStorage();
 
-    clearItems();
-
-    addItems(filteredList);
-    
-}
-
-const removeItem = (item) => {
-    clearItems();
-    console.log(item.innerText);
-    listItems = listItems.filter((oldItem) => {  
-        return oldItem.innerText != item.innerText
-    })
-    addItems(listItems);
-    console.log(listItems);
-}
-
-//Event form listener
-itemForm.addEventListener('submit' , addItem)
-
+//Event form listeners
+itemForm.addEventListener('submit' , onAddItemSubmit)
 //Remove item
-removeBtn.addEventListener('click', ()=>{
-    removeFilter();
-    clearItems();
-})
-
-
+itemList.addEventListener('click', onItemClick)
+//Remove items
+clearBtn.addEventListener('click', clearItems);
 //Filter items
 filterWord.addEventListener('input', filterItems)
 
-
-listItems.forEach(item => {
-    console.log("item " ,item);
-    const xmark = item.querySelector('button');
-    xmark.addEventListener('click', () => {
-        removeItem(xmark.parentElement)
-    })
-})
+document.addEventListener('DOMContentLoaded', displayItems)
